@@ -30,6 +30,7 @@
 
 import { getAgentKinds } from "./config.js";
 import { herdr } from "./herdr.js";
+import { selfPaneId } from "./hc.js";
 import { readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -1415,8 +1416,10 @@ export async function spawnAgent(
 	// model/thinking onto it, so a fallback-path resume re-runs the chain
 	// against CURRENT settings instead of replaying the dead run's pins.
 	const definitionSnapshot: SpawnSpec = { ...merged };
+	// The parent's model is a pi provider/model id: only a pi child can use
+	// it. Other agents (claude, codex, …) keep their own configured model.
 	merged.model =
-		routing.modelSource === "parent" && !kindCaps(merged.kind).model
+		routing.modelSource === "parent" && merged.kind.toLowerCase() !== "pi"
 			? undefined
 			: routing.model;
 	merged.thinking = routing.thinking;
@@ -1509,9 +1512,9 @@ export async function spawnAgent(
 		// spawn cwd > definition cwd (frontmatter `cwd`); `isolated` ignores the
 		// definition's — the worktree IS the cwd choice at spawn level
 		cwd: params.cwd ?? (params.isolated ? undefined : merged.cwd),
-		orchestratorPane: env.HERDR_PANE_ID,
+		orchestratorPane: selfPaneId(env),
 		spawnOrdinal: [...spawnRegistry.values()].filter(
-			(r) => r.orchestratorPane === env.HERDR_PANE_ID,
+			(r) => r.orchestratorPane === selfPaneId(env),
 		).length,
 		spawnedAt: Date.now(),
 		submitted: false,
